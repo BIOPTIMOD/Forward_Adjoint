@@ -1,5 +1,5 @@
 program  bio_optical_adjoint
-use bioptimod_memory,  only: nw, Rrs0p_to_Eu0m, Ed0m, Es0m, Eu0m
+use bioptimod_memory,  only: nw, wavelength, Rrs0p_to_Eu0m, Ed0m, Es0m, Eu0m
 use adj_3stream, only: compute_3stream_adjoint
 !local
 integer :: i
@@ -11,11 +11,22 @@ double precision :: Rrs0p_sat(nw), Eu0m_sat(nw)
 
 Q = 4.0D0
 
+open (unit=15, file="surfdata.txt", status='old',    &
+      access='sequential', form='formatted', action='read' )
+
 do i=1, nw
-   Rrs0p_sat(i) = 0.05D0
-   Ed0mOASIM(i) = 0.35D0
-   Es0mOASIM(i) = 0.35D0
+
+   read(15,*) wavelength(i), Rrs0p_sat(i), Ed0mOASIM(i), Es0mOASIM(i)
+
+   write(*,*) wavelength(i)
+   write(*,*) Rrs0p_sat(i)
+   write(*,*) Ed0mOASIM(i)
+   write(*,*) Es0mOASIM(i)
+   write(*,*) "________________"
+
 end do
+
+close(unit=15)
 
 Ed0m(:) = Ed0mOASIM(:)
 Es0m(:) = Es0mOASIM(:)

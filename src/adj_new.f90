@@ -655,7 +655,7 @@ subroutine test_3stream_adjoint
 end subroutine test_3stream_adjoint
 
 subroutine compute_3stream_adjoint
- use bioptimod_memory,  only: nw, Ed0m, Es0m, Eu0m
+ use bioptimod_memory,  only: nw, wavelength, Ed0m, Es0m, Eu0m
  use grad_descent, only: FM34 
  implicit none
  integer, parameter:: n=4, m=5
@@ -671,11 +671,14 @@ subroutine compute_3stream_adjoint
  double precision, dimension(m):: integrand                    !grid function for numerical integration
  double precision, parameter:: fac = 1.e2, step = 5.e-1        !aux default step = 1.e-1
  double precision:: Eu0_given = 0.577999                       !the "observed" value
- integer:: L, iter ,err
- integer, parameter:: niter=7                                 !number of iterations
- logical, parameter:: solution=.false.                    !print the solution?
+ integer:: L, iter, lvl, err
+ integer, parameter:: niter=7                                  !number of iterations
+ logical, parameter:: solution=.false.                         !print the solution?
  logical, parameter:: perturbe_all=.false.                     !all params or just one or two?
  logical           :: perturb_vector(9)  
+ character*12      :: fileout
+ character*4       :: w_string
+
  !some values, just for testing
  a = 1.0D0; b=1.0D0; bb=1.0D0; vd=0.42D0;
  rd=1.0D0; rs=1.5D0; ru=3.0D0; vs=0.83D0; vu=0.4D0; 
@@ -698,6 +701,11 @@ subroutine compute_3stream_adjoint
  !endif
  !let the obtained value be the observed value
  do inw=1,nw
+     write (unit=w_string,fmt='(I0.4)') wavelength(inw)
+     fileout   = 'sol_' // TRIM(w_string) // '.txt'
+     open (unit=15, file=fileout, status='unknown',    &
+           access='sequential', form='formatted', action='readwrite' )
+
      EdOASIM   = Ed0m(inw)
      EsOASIM   = Es0m(inw)
      Eu0_given = Eu0m(inw)
@@ -722,6 +730,7 @@ subroutine compute_3stream_adjoint
              print*, lambda(s,:)
              print*, lambda(u,:)
      endif
+
      print*, 'W=',W
      print*, 'The derivatives:'
      print*, 'd/da:', derivs(1:n)
@@ -780,7 +789,12 @@ subroutine compute_3stream_adjoint
              print*, '    bb        ', bb/savepar(2*n+1:3*n)
              print*, '    vd        ', vd/savepar(3*n+1:4*n)
              print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5)
+             do lvl=1,n ! loop on levels
+                 write(15,*) iter, z(lvl), z(lvl+1), a(lvl), b(lvl), bb(lvl), vd(lvl), vs, vu, rd, rs, ru
+             enddo
+             write(15,*) '####'
      enddo
+     close(unit=15)
     
      print*, ''
      print*, '================================================='

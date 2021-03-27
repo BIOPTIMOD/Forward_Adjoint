@@ -6,6 +6,7 @@ MODULE bioptimod_memory
     integer         , parameter :: nw  = 1 ! Number of walength solved 
 ! downward planar irradiance [direct and diffuse] just below the sea surface
 ! provided by 
+    integer                     :: wavelength(nw)
     double precision            :: Ed0m(nw), Es0m(nw), Eu0m(nw)
 ! Remote Sensing reflectance just above the Sea surface
     double precision            :: Rrs0p(nw)
