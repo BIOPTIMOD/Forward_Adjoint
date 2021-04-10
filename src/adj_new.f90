@@ -804,7 +804,7 @@ subroutine compute_3stream_adjoint
      print*, 'parameters wrt the original values, %:', pp/savepar
      print*, 'func(par)=', functional(pp)
      print*, '================================================='
-    ! call FM34(functional, Gradient, pp, 1.0d-3, err)
+     call FM34(functional, Gradient, pp, 1.0d-3, err)
      err = 0
      select case(err)
      case(0)
