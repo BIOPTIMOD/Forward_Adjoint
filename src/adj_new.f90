@@ -660,7 +660,8 @@ subroutine compute_3stream_adjoint
  implicit none
  integer, parameter:: n=4, m=5
  integer:: i,inw
- double precision, dimension(n+1), parameter:: z=[0., 1.25, 2.5, 3.75, 5.] !layers
+ double precision, dimension(n+1), parameter:: z=[0., 5., 10., 15., 20.] !layers
+ !double precision, dimension(n+1), parameter:: z=[0., 1.25, 2.5, 3.75, 5.] !layers
  double precision, dimension(m), parameter:: zz = [((i-1)/dble(m-1)*z(n+1),i=1,m)]    !regular grid from z(1) to z(n+1)
  double precision, dimension(n):: a, b, bb, vd
  double precision, dimension(n):: aa
@@ -669,7 +670,7 @@ subroutine compute_3stream_adjoint
  double precision, dimension(4*n+5):: derivs                   !wrt a(n), b(n), b(n), vd(n), also wrt vs, vu, rd, rs, ru
  double precision, dimension(3,m):: lambda, E                  !solutions to two problems
  double precision, dimension(m):: integrand                    !grid function for numerical integration
- double precision, parameter:: fac = 1.e2, step = 5.e-1        !aux default step = 1.e-1
+ double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux default step = 1.e-1
  double precision:: Eu0_given = 0.577999                       !the "observed" value
  integer:: L, iter, lvl, err
  integer, parameter:: niter=7                                  !number of iterations
@@ -679,28 +680,21 @@ subroutine compute_3stream_adjoint
  character*12      :: fileout
  character*4       :: w_string
 
- !some values, just for testing
- a = 1.0D0; b=1.0D0; bb=1.0D0; vd=0.42D0;
- rd=1.0D0; rs=1.5D0; ru=3.0D0; vs=0.83D0; vu=0.4D0; 
  perturb_vector(:)= .FALSE.
  perturb_vector(1)= .TRUE.
  perturb_vector(2)= .TRUE.
- !save the values for future comparing
- savepar(1:n) = a; savepar(n+1:2*n) = b; savepar(2*n+1:3*n) = bb;
- savepar(3*n+1:4*n) = vd; 
- savepar(4*n+1) = vs;  savepar(4*n+2) = vu;  savepar(4*n+3) = rd;
- savepar(4*n+4) = rs;  savepar(4*n+5) = ru; 
- savepar = savepar/100. !to be in %
- !solve the direct problem
- !call solve_direct(m, zz, n, z, a, b, bb, rd, rs, ru, vd, vs, vu, EdOASIM, EsOASIM, E)
- !if(solution) then
- !        print*, 'The solution E:'
- !        print*, E(d,:)
- !        print*, E(s,:)
- !        print*, E(u,:)
- !endif
- !let the obtained value be the observed value
+ perturb_vector(3)= .TRUE.
  do inw=1,nw
+ !some values, just for testing
+     a = 0.1D0; b=0.1D0; bb=0.05D0; vd=0.42D0;
+     rd=1.0D0; rs=1.5D0; ru=3.0D0; vs=0.83D0; vu=0.4D0; 
+ !save the values for future comparing
+     savepar(1:n) = a; savepar(n+1:2*n) = b; savepar(2*n+1:3*n) = bb;
+     savepar(3*n+1:4*n) = vd; 
+     savepar(4*n+1) = vs;  savepar(4*n+2) = vu;  savepar(4*n+3) = rd;
+     savepar(4*n+4) = rs;  savepar(4*n+5) = ru; 
+     savepar = savepar/100. !to be in %
+!
      write (unit=w_string,fmt='(I0.4)') wavelength(inw)
      fileout   = 'sol_' // TRIM(w_string) // '.txt'
      open (unit=15, file=fileout, status='unknown',    &
