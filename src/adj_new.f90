@@ -475,7 +475,7 @@ subroutine test_3stream_adjoint
  double precision, dimension(4*n+5,nw):: derivs                   !wrt a(n), b(n), b(n), vd(n), also wrt vs, vu, rd, rs, ru
  double precision, dimension(3,m,nw):: lambda, E                  !solutions to two problems
  double precision, dimension(m):: integrand                    !grid function for numerical integration
- double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux
+ double precision, parameter:: fac = 1.e1, step = 1.e-1        !aux default fac = 1.e2, step = 1.e-1
  double precision:: Eu0_given = 0.577999                       !the "observed" value
  integer:: L, iter ,err
  integer, parameter:: niter=7                                 !number of iterations
@@ -589,7 +589,7 @@ subroutine test_3stream_adjoint
          print*, '    b         ', b/savepar(n+1:2*n,:)
          print*, '    bb        ', bb/savepar(2*n+1:3*n,:)
          print*, '    vd        ', vd/savepar(3*n+1:4*n,:)
-         print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
+!        print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
  enddo
 
  print*, ''
@@ -678,15 +678,16 @@ subroutine compute_3stream_adjoint
  double precision, dimension(4*n+5,nw):: derivs                   !wrt a(n), b(n), b(n), vd(n), also wrt vs, vu, rd, rs, ru
  double precision, dimension(3,m,nw):: lambda, E                  !solutions to two problems
  double precision, dimension(m,nw):: integrand                    !grid function for numerical integration
- double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux default step = 1.e-1
+ !double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux default step = 1.e-1
+ double precision, parameter:: fac = 1.e-1, step = 1.e-2        !aux default fac = 1.e2, step = 1.e-1
  double precision:: Eu0_given = 0.577999                       !the "observed" value
  integer:: L, iter, lvl, err
  integer, parameter:: niter=7                                  !number of iterations
  logical, parameter:: solution=.false.                         !print the solution?
  logical, parameter:: perturbe_all=.false.                     !all params or just one or two?
  logical           :: perturb_vector(9)  
- character*12      :: fileout
- character*4       :: w_string
+ character*14      :: fileout
+ character*7       :: w_string
 
  perturb_vector(:)= .FALSE.
  perturb_vector(1)= .TRUE.
@@ -694,7 +695,7 @@ subroutine compute_3stream_adjoint
  perturb_vector(3)= .TRUE.
  do inw=1,nw
  !some values, just for testing
-     a = 0.1D0; b=0.1D0; bb=0.05D0; vd=0.42D0;
+     a = 0.05D0; b=0.01D0; bb=0.05D0; vd=0.42D0;
      rd=1.0D0; rs=1.5D0; ru=3.0D0; vs=0.83D0; vu=0.4D0; 
  !save the values for future comparing
      savepar(1:n,:) = a; savepar(n+1:2*n,:) = b; savepar(2*n+1:3*n,:) = bb;
@@ -703,7 +704,7 @@ subroutine compute_3stream_adjoint
      savepar(4*n+4,:) = rs;  savepar(4*n+5,:) = ru; 
      savepar = savepar/100. !to be in %
 !
-     write (unit=w_string,fmt='(I0.4)') wavelength(inw)
+     write (unit=w_string,fmt='(F6.2)') wavelength(inw)
      fileout   = 'sol_' // TRIM(w_string) // '.txt'
      open (unit=15, file=fileout, status='unknown',    &
            access='sequential', form='formatted', action='readwrite' )
@@ -790,7 +791,7 @@ subroutine compute_3stream_adjoint
              print*, '    b         ', b/savepar(n+1:2*n,:)
              print*, '    bb        ', bb/savepar(2*n+1:3*n,:)
              print*, '    vd        ', vd/savepar(3*n+1:4*n,:)
-             print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
+!            print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
              do lvl=1,n ! loop on levels
                  write(15,*) iter, z(lvl), z(lvl+1), a(lvl,1), b(lvl,1), bb(lvl,1), vd(lvl,1), vs, vu, rd, rs, ru
              enddo
@@ -798,34 +799,34 @@ subroutine compute_3stream_adjoint
      enddo
      close(unit=15)
     
-     print*, ''
-     print*, '================================================='
-     print*, '============ DESCENT ============================'
-     print*, '================================================='
-     pp = (100.*savepar)*1.10
-     print*, 'parameters wrt the original values, %:', pp/savepar
-     print*, 'func(par)=', functional(pp)
-     print*, '================================================='
+!    print*, ''
+!    print*, '================================================='
+!    print*, '============ DESCENT ============================'
+!    print*, '================================================='
+!    pp = (100.*savepar)*1.10
+!    print*, 'parameters wrt the original values, %:', pp/savepar
+!    print*, 'func(par)=', functional(pp)
+!    print*, '================================================='
 !    call FM34(functional, Gradient, pp, 1.0d-3, err)
-     err = 0
-     select case(err)
-     case(0)
-         print*, 'OK!!!'
-     case(66)
-         print*, 'Error', err, "'Number of iterations kmax exceeded'"
-     case(67)
-         print*, 'Error', err, "'Number of iterations cmax exceeded'"
-     case(65)
-         print*, 'Error', err, "'Possible instability'"
-     case default
-         print*, 'Unknown error', err
-     end select
-     print*, '================================================='
-     print*, 'parameters wrt the original values, %:', pp/savepar
-     print*, 'func(par)=', functional(pp)
-     print*, '|grad(par)|=', gradient(pp,derivs)
-     print*, 'grad(par)=', derivs
-     print*, '================================================='
+!    err = 0
+!    select case(err)
+!    case(0)
+!        print*, 'OK!!!'
+!    case(66)
+!        print*, 'Error', err, "'Number of iterations kmax exceeded'"
+!    case(67)
+!        print*, 'Error', err, "'Number of iterations cmax exceeded'"
+!    case(65)
+!        print*, 'Error', err, "'Possible instability'"
+!    case default
+!        print*, 'Unknown error', err
+!    end select
+!    print*, '================================================='
+!    print*, 'parameters wrt the original values, %:', pp/savepar
+!    print*, 'func(par)=', functional(pp)
+!    print*, '|grad(par)|=', gradient(pp,derivs)
+!    print*, 'grad(par)=', derivs
+!    print*, '================================================='
 
  enddo
  contains
