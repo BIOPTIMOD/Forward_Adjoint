@@ -663,7 +663,10 @@ subroutine test_3stream_adjoint
 end subroutine test_3stream_adjoint
 
 subroutine compute_3stream_adjoint
- use bioptimod_memory, only: nw, wavelength, Ed0m, Es0m, Eu0m
+ use bioptimod_memory, only: nw, wavelength, Ed0m, Es0m, Eu0m, sunz,&
+                             a_init, b_init, bb_init, &
+                             rd_init, rs_init, ru_init, &
+                             vs_init, vu_init 
  use grad_descent, only: FM34 
  implicit none
  integer, parameter:: n=4, m=5
@@ -673,6 +676,7 @@ subroutine compute_3stream_adjoint
  double precision, dimension(m), parameter:: zz = [((i-1)/dble(m-1)*z(n+1),i=1,m)]    !regular grid from z(1) to z(n+1)
  double precision, dimension(n,nw):: a, b, bb, vd
  double precision, dimension(n,nw):: aa
+ double precision                 :: mud
  double precision, dimension(nw) :: rd, rs, ru, vs, vu, W, EdOASIM, EsOASIM
  double precision, dimension(4*n+5,nw):: savepar, pp 
  double precision, dimension(4*n+5,nw):: derivs                   !wrt a(n), b(n), b(n), vd(n), also wrt vs, vu, rd, rs, ru
@@ -689,14 +693,17 @@ subroutine compute_3stream_adjoint
  character*14      :: fileout
  character*7       :: w_string
 
+ call getmud(sunz,mud)
+
  perturb_vector(:)= .FALSE.
  perturb_vector(1)= .TRUE.
  perturb_vector(2)= .TRUE.
  perturb_vector(3)= .TRUE.
+
  do inw=1,nw
  !some values, just for testing
-     a = 0.05D0; b=0.01D0; bb=0.05D0; vd=0.42D0;
-     rd=1.0D0; rs=1.5D0; ru=3.0D0; vs=0.83D0; vu=0.4D0; 
+     a = a_init; b=b_init; bb=bb_init; vd=mud;
+     rd=rd_init; rs=rs_init; ru=ru_init; vs=vs_init; vu=vu_init; 
  !save the values for future comparing
      savepar(1:n,:) = a; savepar(n+1:2*n,:) = b; savepar(2*n+1:3*n,:) = bb;
      savepar(3*n+1:4*n,:) = vd; 
@@ -792,13 +799,47 @@ subroutine compute_3stream_adjoint
              print*, '    bb        ', bb/savepar(2*n+1:3*n,:)
              print*, '    vd        ', vd/savepar(3*n+1:4*n,:)
 !            print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
+             write(15,*) W
+             write(15,*) a
+             write(15,*) b
+             write(15,*) bb
+             write(15,*) '####'
              do lvl=1,n ! loop on levels
                  write(15,*) iter, z(lvl), z(lvl+1), a(lvl,1), b(lvl,1), bb(lvl,1), vd(lvl,1), vs, vu, rd, rs, ru
              enddo
              write(15,*) '####'
      enddo
      close(unit=15)
-    
+
+     fileout   = 'coe_' // TRIM(w_string) // '.txt'
+     open (unit=15, file=fileout, status='unknown',    &
+           access='sequential', form='formatted', action='readwrite' )
+
+             write(15,*) W
+
+             do lvl=1,n ! loop on levels
+                 write(15,335,advance='no') z(lvl)
+                 write(15,334,advance='no') ' '
+             enddo
+                 write(15,335) z(n+1)
+
+             do lvl=1,n ! loop on levels
+                 write(15,335,advance='no') a(lvl,1)
+                 write(15,334,advance='no') ' '
+                 write(15,335,advance='no') b(lvl,1)
+                 write(15,334,advance='no') ' '
+                 write(15,335) bb(lvl,1)
+             enddo
+             write(15,*) '####'
+             do lvl=1,n ! loop on levels
+                 write(15,*) iter, z(lvl), z(lvl+1), a(lvl,1), b(lvl,1), bb(lvl,1), vd(lvl,1), vs, vu, rd, rs, ru
+             enddo
+             write(15,*) '####'
+
+     close(unit=15)
+333  FORMAT(E7.2)
+334  FORMAT(A)
+335  FORMAT(F7.4)
 !    print*, ''
 !    print*, '================================================='
 !    print*, '============ DESCENT ============================'
