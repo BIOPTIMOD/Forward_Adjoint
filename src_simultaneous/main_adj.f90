@@ -22,12 +22,13 @@ call allocate_mem()
 
     do i=1, nw
 
-       read(15,*) wavelength(i), Rrs0p_sat(i), Ed0mOASIM(i), Es0mOASIM(i)
+       read(15,*) wavelength(i), Rrs0p_sat(i), Ed0mOASIM(i), Es0mOASIM(i), sunz
 
        write(*,*) 'Wavelenght ', wavelength(i)
        write(*,*) 'Rrs',  Rrs0p_sat(i)
        write(*,*) 'Ed0m', Ed0mOASIM(i)
        write(*,*) 'Es0m', Es0mOASIM(i)
+       write(*,*) 'sunz', sunz
        write(*,*) "________________"
 
     end do
