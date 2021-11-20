@@ -1,0 +1,144 @@
+import os,sys
+import glob
+from datetime import datetime
+import subprocess
+import numpy as np
+import pandas as pd
+
+def create_init_params(lam):
+    df_abw   = pd.read_csv("bcs/abw25_boundaries.dat", delimiter="\s+",skiprows = 5,header=None, engine='python')
+    lam_bin  = df_abw.iloc[:,0] 
+    lam_low  = df_abw.iloc[:,1] 
+    lam_hig  = df_abw.iloc[:,2] 
+    idx=10000
+    for i in range(len(lam_low)):
+#       print(lam)
+#       print(lam_low[i])
+#       print(lam_hig[i])
+        if (lam >= lam_low[i]) and (lam < lam_hig[i]): 
+            idx=i
+#           print(idx)
+
+    aw       = df_abw.iloc[idx,3]
+    bw       = df_abw.iloc[idx,4]
+    bbw      = df_abw.iloc[idx,5]
+
+    print("Writing init param file")
+    param_file="init_params.txt"
+    fid_p = open(param_file,'w')
+    fid_p.write(str(aw))
+    fid_p.write(" ")
+    fid_p.write(str(bw))
+    fid_p.write("  ")
+    fid_p.write(str(bbw))
+    fid_p.close()
+
+
+def write_row(fid,input_file):
+    #                           012345678901234567890123456789
+#    input_file="../SURFACE_DATA/surface.2006-02-03_13-30-00.txt"
+    
+    date_time_str=os.path.basename(input_file)[8:27]
+    
+    date_time_obj = datetime.strptime(date_time_str, '%Y-%m-%d_%H-%M-%S')
+    
+    exe  = "./adj.xx"
+    
+    with open(input_file) as f:
+        lines = [line.rstrip() for line in f]
+    
+    for line in lines:
+        input_str=line.split(" ")
+    
+        # ./adj.xx 442.5 0.00590923 2.2945944000000003 5.4118061 64.75473014
+        wl   = input_str[0] # "442.5"
+
+        ## clean existing files
+        try:
+           result_file = "coe_" + "{:.2f}".format(float(wl)) + ".txt"
+           subprocess.run(['rm ' + result_file])
+        except:
+           print("File already clean!")
+
+        create_init_params(float(wl))
+
+        rrs  = input_str[1] # "0.00590923"
+        ed   = input_str[2] # "2.2945944000000003"
+        es   = input_str[3] # "5.4118061"
+        sunz = input_str[4] # "64.75473014"
+        command=[exe, wl, rrs, ed, es, sunz]
+    
+        print(command)
+        subprocess.run(command) # creates results file
+    
+        if os.path.isfile(result_file): 
+
+            with open(result_file) as g:
+               rlines = [rline.rstrip() for rline in g]
+        
+            WFUNC=rlines[0].split()
+            depths=rlines[1].split()
+            NDEPTH=len(depths)
+            NLAYERS=NDEPTH-1
+            for k in range(NLAYERS):
+                coeff=rlines[k+2].split()
+                print(coeff)
+                a =coeff[0]
+                b =coeff[1]
+                bb=coeff[2]
+                fid.write(date_time_obj.strftime("%Y-%m-%d")) 
+                fid.write("\t")
+                fid.write(date_time_obj.strftime("%H-%M-%S")) 
+                fid.write("\t")
+                fid.write(depths[k])
+                fid.write("\t")
+                fid.write(depths[k+1])
+                fid.write("\t")
+                fid.write(wl)
+                fid.write("\t")
+                fid.write('{0: >#016.5f}'. format(float(rrs)))
+                fid.write("\t")
+                fid.write('{0: >#016.2f}'. format(float(ed)))
+                fid.write("\t")
+                fid.write('{0: >#016.2f}'. format(float(es)))
+                fid.write("\t")
+                fid.write('{0: >#016.1f}'. format(float(sunz)))
+                fid.write("\t")
+                fid.write(a)
+                fid.write("\t")
+                fid.write(b)
+                fid.write("\t")
+                fid.write(bb)
+                fid.write("\t")
+                fid.write('{:.2e}'. format(float(WFUNC[0])))
+                fid.write("\n")
+
+
+#########################
+### MAIN CODE 
+
+file_list=[]
+
+for input_file in glob.iglob('../SURFACE_DATA/surface.*.txt'):
+#for input_file in glob.iglob('../SURFACE_DATA/surface.2008-07-25_11-30-00.txt'):
+    file_list.append(input_file)
+
+file_list.sort()
+
+
+#### Create output file
+output_file="inversion_result.txt"
+
+fid = open(output_file,'w')
+header='yyyymmdd\tHHMMSS\tDepth_Up\tDepth_Down\tWL\trrs\ted\tes\tsunz\ta\tb\tbb\tERROR_NORM'
+fid.write(header)
+fid.write("\n")
+
+
+#for input_file in file_list[0:2]:
+for input_file in file_list:
+    print(input_file)
+    write_row(fid,input_file)
+
+fid.close()    
+print("EOB")
