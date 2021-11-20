@@ -64,88 +64,88 @@ def create_init_opt_const():
 def write_row(fid,input_file):
     #                           012345678901234567890123456789
 #    input_file="../SURFACE_DATA/surface.2006-02-03_13-30-00.txt"
+
+    local_file="surfdata.txt"
+    subprocess.run(["rm -f " + local_file], shell=True)
+    subprocess.run(["cp  " + input_file + " " + local_file], shell=True)
     
     date_time_str=os.path.basename(input_file)[8:27]
     
     date_time_obj = datetime.strptime(date_time_str, '%Y-%m-%d_%H-%M-%S')
     
-    exe  = "./adj.xx"
-    
     with open(input_file) as f:
         lines = [line.rstrip() for line in f]
     
+    nwl = 0 # number of wavelengths
     for line in lines:
-        input_str=line.split(" ")
+        nwl += 1
+#       input_str=line.split(" ")
     
-        # ./adj.xx 442.5 0.00590923 2.2945944000000003 5.4118061 64.75473014
-        wl   = input_str[0] # "442.5"
+    nwl_s   = str(nwl)
 
-        ## clean existing files
-        try:
-           result_file = "coe_" + "{:.2f}".format(float(wl)) + ".txt"
-           subprocess.run(['rm ' + result_file])
-        except:
-           print("File already clean!")
+    ## clean existing files
+    try:
+        result_file = "coe_" + "{:.2f}".format(float(wl)) + ".txt"
+        subprocess.run(['rm ' + result_file], shell=True)
+    except:
+        print("File already clean!")
 
-        create_init_params(float(wl))
-
-        rrs  = input_str[1] # "0.00590923"
-        ed   = input_str[2] # "2.2945944000000003"
-        es   = input_str[3] # "5.4118061"
-        sunz = input_str[4] # "64.75473014"
-        command=[exe, wl, rrs, ed, es, sunz]
     
-        print(command)
-        subprocess.run(command) # creates results file
+#    command=["./adj.xx 7"]
+    command=["./adj.xx", nwl_s]
     
-        if os.path.isfile(result_file): 
+    print(command)
+    subprocess.Popen(command) # creates results file
 
-            with open(result_file) as g:
-               rlines = [rline.rstrip() for rline in g]
+    return
+    
+#       if os.path.isfile(result_file): 
+
+#           with open(result_file) as g:
+#              rlines = [rline.rstrip() for rline in g]
         
-            WFUNC=rlines[0].split()
-            depths=rlines[1].split()
-            NDEPTH=len(depths)
-            NLAYERS=NDEPTH-1
-            for k in range(NLAYERS):
-                coeff=rlines[k+2].split()
-                print(coeff)
-                a =coeff[0]
-                b =coeff[1]
-                bb=coeff[2]
-                fid.write(date_time_obj.strftime("%Y-%m-%d")) 
-                fid.write("\t")
-                fid.write(date_time_obj.strftime("%H-%M-%S")) 
-                fid.write("\t")
-                fid.write(depths[k])
-                fid.write("\t")
-                fid.write(depths[k+1])
-                fid.write("\t")
-                fid.write(wl)
-                fid.write("\t")
-                fid.write('{0: >#016.5f}'. format(float(rrs)))
-                fid.write("\t")
-                fid.write('{0: >#016.2f}'. format(float(ed)))
-                fid.write("\t")
-                fid.write('{0: >#016.2f}'. format(float(es)))
-                fid.write("\t")
-                fid.write('{0: >#016.1f}'. format(float(sunz)))
-                fid.write("\t")
-                fid.write(a)
-                fid.write("\t")
-                fid.write(b)
-                fid.write("\t")
-                fid.write(bb)
-                fid.write("\t")
-                fid.write('{:.2e}'. format(float(WFUNC[0])))
-                fid.write("\n")
+#           WFUNC=rlines[0].split()
+#           depths=rlines[1].split()
+#           NDEPTH=len(depths)
+#           NLAYERS=NDEPTH-1
+#           for k in range(NLAYERS):
+#               coeff=rlines[k+2].split()
+#               print(coeff)
+#               a =coeff[0]
+#               b =coeff[1]
+#               bb=coeff[2]
+#               fid.write(date_time_obj.strftime("%Y-%m-%d")) 
+#               fid.write("\t")
+#               fid.write(date_time_obj.strftime("%H-%M-%S")) 
+#               fid.write("\t")
+#               fid.write(depths[k])
+#               fid.write("\t")
+#               fid.write(depths[k+1])
+#               fid.write("\t")
+#               fid.write(wl)
+#               fid.write("\t")
+#               fid.write('{0: >#016.5f}'. format(float(rrs)))
+#               fid.write("\t")
+#               fid.write('{0: >#016.2f}'. format(float(ed)))
+#               fid.write("\t")
+#               fid.write('{0: >#016.2f}'. format(float(es)))
+#               fid.write("\t")
+#               fid.write('{0: >#016.1f}'. format(float(sunz)))
+#               fid.write("\t")
+#               fid.write(a)
+#               fid.write("\t")
+#               fid.write(b)
+#               fid.write("\t")
+#               fid.write(bb)
+#               fid.write("\t")
+#               fid.write('{:.2e}'. format(float(WFUNC[0])))
+#               fid.write("\n")
 
 
 #########################
 ### MAIN CODE 
 
 create_init_opt_const()
-sys.exit()
 
 file_list=[]
 
@@ -169,6 +169,7 @@ fid.write("\n")
 for input_file in file_list:
     print(input_file)
     write_row(fid,input_file)
+    sys.exit()
 
 fid.close()    
 print("EOB")
