@@ -33,6 +33,33 @@ def create_init_params(lam):
     fid_p.write(str(bbw))
     fid_p.close()
 
+def create_init_opt_const():
+    # 7 optically active constituents
+    #Water, P1, P2, P3, P4, CDOM, NAP
+    W   =1.0
+    P1  =0.5
+    P2  =0.5
+    P3  =0.5
+    P4  =0.5
+    CDOM=0.5
+    NAP =0.05
+    param_file="init_opt_const.txt"
+    fid_p = open(param_file,'w')
+    header="W       P1      P2      P3      P4      CDOM    NAP    "
+    data  ="1.00000 0.50000 0.50000 0.50000 0.50000 0.50000 0.05000"
+    data  ="{:1.5f}".format(W)    + ' ' + \
+           "{:1.5f}".format(P1)   + ' ' + \
+           "{:1.5f}".format(P2)   + ' ' + \
+           "{:1.5f}".format(P3)   + ' ' + \
+           "{:1.5f}".format(P4)   + ' ' + \
+           "{:1.5f}".format(CDOM) + ' ' + \
+           "{:1.5f}".format(NAP ) 
+           
+    fid_p.write(header)
+    fid_p.write("\n")
+    fid_p.write(data)
+    fid_p.close()
+
 
 def write_row(fid,input_file):
     #                           012345678901234567890123456789
@@ -116,6 +143,9 @@ def write_row(fid,input_file):
 
 #########################
 ### MAIN CODE 
+
+create_init_opt_const()
+sys.exit()
 
 file_list=[]
 
