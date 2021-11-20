@@ -10,6 +10,7 @@ double precision  :: Q
 ! Init
 
 Q = 4.0D0
+sunz = 0.0D0
 
 CALL getarg(1, arg)
 READ(arg,fmt=*) nw
