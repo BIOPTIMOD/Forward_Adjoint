@@ -503,7 +503,7 @@ subroutine compute_3stream_adjoint
  double precision, dimension(3,m,nw):: lambda, E                  !solutions to two problems
  double precision, dimension(m,nw):: integrand                    !grid function for numerical integration
 ! double precision, parameter:: fac = 1.e2, maxstep = 1.e-1        !Reasonable
- double precision, parameter:: fac = 1.e2, maxstep = 7.e-1        !aux default step = 1.e-1
+ double precision, parameter:: fac = 1.e2, maxstep = 1.e-1        !aux default step = 1.e-1
  double precision  :: step        !aux default fac = 1.e2, step = 1.e-1
  double precision  :: FF, FF_n        !aux default fac = 1.e2, step = 1.e-1
  double precision  :: WTOT
@@ -538,13 +538,13 @@ subroutine compute_3stream_adjoint
  call p%set_const('rs',rs_init)
  call p%set_const('ru',ru_init)
  ! Initialize optical constituents
- p%opt_const(:,1) =1.0D0 ! Water concentration is nomilal 1
- p%opt_const(:,2) =0.5D0 ! Diatoms [mg Chla/m3]
- p%opt_const(:,3) =0.5D0 ! Nano    [mg Chla/m3]
- p%opt_const(:,4) =0.5D0 ! Pico    [mg Chla/m3]
- p%opt_const(:,5) =0.5D0 ! Dino    [mg Chla/m3]
- p%opt_const(:,6) =0.5D0 ! CDOM    [mg C/m3]
- p%opt_const(:,7) =0.05D0 ! NAP    [mg C/m3]
+ !p%opt_const(:,1) =1.0D0 ! Water concentration is nomilal 1
+!p%opt_const(:,2) =0.5D0 ! Diatoms [mg Chla/m3]
+! p%opt_const(:,3) =0.5D0 ! Nano    [mg Chla/m3]
+! p%opt_const(:,4) =0.5D0 ! Pico    [mg Chla/m3]
+! p%opt_const(:,5) =0.5D0 ! Dino    [mg Chla/m3]
+! p%opt_const(:,6) =0.5D0 ! CDOM    [mg C/m3]
+! p%opt_const(:,7) =0.05D0 ! NAP    [mg C/m3]
  call calc_total_parameters(p)
  EdOASIM   = Ed0m(:)
  EsOASIM   = Es0m(:)

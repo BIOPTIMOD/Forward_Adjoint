@@ -120,6 +120,8 @@ subroutine init_par(this, nw, nl, nopt)
 use bioptimod_memory, ONLY:a_coeff, b_coeff, bb_coeff
     class(par), intent(inout):: this
     integer, intent(in):: nw, nl, nopt
+    integer :: j,k
+    character(80)    :: header(nopt)
     this%n_wavelen = nw
     this%n_layers  = nl
     this%n_opt     = nopt
@@ -148,6 +150,19 @@ use bioptimod_memory, ONLY:a_coeff, b_coeff, bb_coeff
     this%a_coeff=a_coeff
     this%b_coeff=b_coeff
     this%bb_coeff=bb_coeff
+
+    open(11,file='./init_opt_const.txt',status='old')
+    read(11,22) (header(j),j=1,nopt)
+
+    do k=1,nl
+         read(11,23) (this%opt_const(k,j),j=1,nopt)
+    enddo
+
+    close(11)
+    write(*,*) "opt_const", this%opt_const
+
+22   FORMAT(A8,A8,A8,A8,A8,A8,A8)
+23   FORMAT(f8.5,f8.5,f8.5,f8.5,f8.5,f8.5,f8.5)
 
 end subroutine init_par
 
