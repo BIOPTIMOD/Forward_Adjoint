@@ -487,37 +487,42 @@ subroutine compute_3stream_adjoint
                              a_init, b_init, bb_init, &
                              rd_init, rs_init, ru_init, &
                              vs_init, vu_init ,opt_const_name
- use par_mod, only: par, calc_total_parameters
+ use par_mod,  only: par, calc_total_parameters
+ use grad_descent
  implicit none
  integer, parameter:: n=1, m=10
 !integer, parameter:: n=4, m=5
- integer:: i,inw,ino
- double precision, dimension(n+1), parameter:: z=[0., 9.] !layers
+ integer:: i,k,j,inw,ino
+ double precision, dimension(n+1), parameter :: z=[0., 9.] !layers
  !double precision, dimension(n+1), parameter:: z=[0., 5., 10., 15., 20.] !layers
  !double precision, dimension(n+1), parameter:: z=[0., 1.25, 2.5, 3.75, 5.] !layers
- double precision, dimension(m), parameter:: zz = [((i-1)/dble(m-1)*z(n+1),i=1,m)]    !regular grid from z(1) to z(n+1)
+ double precision, dimension(m), parameter :: zz = [((i-1)/dble(m-1)*z(n+1),i=1,m)]    !regular grid from z(1) to z(n+1)
  type(par):: p, p_n, savepar, derivs
- double precision, dimension(n,nw):: aa
- double precision                 :: mud
- double precision, dimension(nw) :: rd, rs, ru, vs, vu, W, EdOASIM, EsOASIM
- double precision, dimension(3,m,nw):: lambda, E                  !solutions to two problems
- double precision, dimension(m,nw):: integrand                    !grid function for numerical integration
+ double precision, dimension(n,nw)   :: aa
+ double precision                    :: mud
+ double precision, dimension(nw)     :: rd, rs, ru, vs, vu, W, EdOASIM, EsOASIM
+ double precision, dimension(3,m,nw) :: lambda, E                  !solutions to two problems
+ double precision, dimension(m,nw)   :: integrand                    !grid function for numerical integration
 ! double precision, parameter:: fac = 1.e2, maxstep = 1.e-1        !Reasonable
- double precision, parameter:: fac = 1.e2, maxstep = 1.e-1        !aux default step = 1.e-1
+ double precision, parameter         :: fac = 1.e2, maxstep = 1.e-1        !aux default step = 1.e-1
  double precision  :: step        !aux default fac = 1.e2, step = 1.e-1
  double precision  :: FF, FF_n        !aux default fac = 1.e2, step = 1.e-1
  double precision  :: WTOT
+ double precision  :: X(no),low(no),Eps
  integer           :: L, iter, lvl, err
+ integer           :: descent
  integer, parameter:: niter=30                                  !number of iterations
  logical, parameter:: solution=.false.                         !print the solution?
  logical, parameter:: perturbe_all=.false.                     !all params or just one or two?
  logical           :: individual_perturbation = .false. !change a, b, bb only
  logical           :: perturb_vector(9)                 !only valid if individual_perturbation .eq. true: then any parameter can be changed
  logical           :: step_back
- character*14      :: fileout
+ character*18      :: fileout
  character*7       :: w_string
+ integer           :: error
 
  step = maxstep
+ Eps  = 5.0E-5
 
  call getmud(sunz,mud)
 
@@ -549,7 +554,7 @@ subroutine compute_3stream_adjoint
  EdOASIM   = Ed0m(:)
  EsOASIM   = Es0m(:)
 
- fileout   = 'sol.txt'
+ fileout   = 'solver.txt'
  open (unit=15, file=fileout, status='unknown',    &
        access='sequential', form='formatted', action='readwrite' )
 
@@ -587,6 +592,8 @@ subroutine compute_3stream_adjoint
 !    call derivs%print('d/d')
      !try to improve the set of parameters
 !    p_n = par(p)
+  descent=1
+  if (descent .EQ. 0 ) then  
      iter=0
      do iter=1,niter
              print*,'====================', iter
@@ -655,41 +662,99 @@ subroutine compute_3stream_adjoint
      enddo
      close(unit=15)
 
-     fileout   = 'coe.txt'
-     open (unit=15, file=fileout, status='unknown',    &
-           access='sequential', form='formatted', action='readwrite' )
+    endif
 
-             write(15,*) W
+    if (descent .EQ. 1 ) then  
+       do j=1,no
+            X(j) = p%opt_const(1,j)
+            low(j) = 0.01D0
+       enddo
+       call FM34(p, functional, gradient, X, Eps, error,verbose=.true.,low=low)
+    endif
 
-             write(15,*) E(u,1,1)
-             write(15,*) Eu0m(1)
+    open(15,file='./res_bio.txt',status='new')
+    write(15,22) "LAYER   ", "W       ", "P1      ","P2      ","P3      ","P4      ","CDOM    ","NAP     "
 
-             do lvl=1,n ! loop on levels
-                 write(15,335,advance='no') z(lvl)
-                 write(15,334,advance='no') ' '
-             enddo
-                 write(15,335) z(n+1)
+    do k=1,n
+         write(15,23) k, (p%opt_const(k,j),j=1,no)
+    enddo
 
-             do lvl=1,n ! loop on levels
-                 write(15,335,advance='no') p%a(lvl,1,1)
-                 write(15,334,advance='no') ' '
-                 write(15,335,advance='no') p%b(lvl,1,1)
-                 write(15,334,advance='no') ' '
-                 write(15,335) p%bb(lvl,1,1)
-             enddo
-             write(15,*) '####'
-!            do lvl=1,n ! loop on levels
-!                write(15,*) iter, z(lvl), z(lvl+1), &
-!                    & p%get1("a",1,lvl), p%get1('b',1,lvl), p%get1('bb',1,lvl), &
-!                    & p%get1('vd',1,lvl), p%get1('vs'), p%get1('vu'), &
-!                    & p%get1('rd'), p%get1('rs'), p%get1('ru')
-!            enddo
-             write(15,*) '####'
+    close(15)
 
-     close(unit=15)
-333  FORMAT(E7.2)
-334  FORMAT(A)
-335  FORMAT(F7.4)
+
+    do inw=1,nw
+    write (unit=w_string,fmt='(F6.2)') wavelength(inw)
+    fileout   = 'res_opt' // TRIM(w_string) // '.txt'
+    open(15,file=fileout,status='new')
+    write(15,22) "LAYER   ", "Z_UP     ", "Z_DOWN  ","ZEN     ","EdOAS   ","EsOAS   ","EuSAT   ","EdMOD   ","EsMOD   ", & 
+                 "EuMOD   ", "EuMODtop"
+
+    do k=1,n
+         write(15,23) k, z(k), z(k+1), sunz, EdOASIM(inw), EsOASIM(inw), Eu0m(inw), E(d,m,inw), E(s,m,inw), & 
+                      E(u,m,inw), E(u,1,inw)
+    enddo
+
+    close(15)
+    enddo
+
+22   FORMAT(A8,A8,A8,A9,A8,A8,A8,A8,A8,A8,A8)
+23   FORMAT(I8,f8.5,f8.5,f9.5,f8.5,f8.5,f8.5,f8.5,f8.5,f8.5,f8.5)
+
+     return
+
+ contains
+
+     function functional(mypar,X, const)
+         double precision:: functional
+         type(par),intent(inout) :: mypar
+         double precision, dimension(:), intent(in), optional:: const     !any extra parameters
+         double precision, dimension(:), intent(inout) :: X     !any extra parameters
+         do ino =2,no
+             if (perturb_vector(ino))  then
+                     mypar%opt_const(1,ino) = X(ino)
+             endif
+         enddo
+         call calc_total_parameters(mypar)
+         call solve_direct(m, zz, n, z, nw, mypar, EdOASIM(:), EsOASIM(:), E(:,:,:))
+         functional = 0.0D0
+         do inw=1,nw
+             functional = functional + fac*0.5*(E(u,1,inw) - Eu0m(inw))**2
+         enddo
+     end function functional
+
+     function gradient(mypar,X,grad,const)
+         implicit none
+         double precision:: gradient
+         type(par), intent(inout) :: mypar
+         double precision, dimension(:), intent(in), optional:: const     !any extra parameters
+         double precision, dimension(:), intent(inout) :: X
+         double precision, dimension(:), intent(out) :: grad    !any extra parameters
+         double precision :: grad2 
+         double precision :: myW(nw)
+         type(par)        :: derivs
+         do ino =2,no
+             if (perturb_vector(ino))  then
+                     mypar%opt_const(1,ino) = X(ino)
+             endif
+         enddo
+         call calc_total_parameters(mypar)
+         call solve_direct(m, zz, n, z, nw, mypar, EdOASIM(:), EsOASIM(:), E(:,:,:))
+         do inw=1,nw
+             myW(inw) = fac*(E(u,1,inw) - Eu0m(inw))
+         enddo
+         call get_derivs(m, zz, n, z, mypar, myW, E, derivs)
+
+         grad(:) = 0.0D0
+         grad2 = 0.0D0
+
+         do ino =2,no
+             if (perturb_vector(ino))  then
+                     grad(ino) = derivs%opt_const(1,ino)
+                     grad2     = derivs%opt_const(1,ino) * derivs%opt_const(1,ino)
+             endif
+         enddo
+         gradient = sqrt(grad2)
+     end function gradient
 
 
 end subroutine compute_3stream_adjoint

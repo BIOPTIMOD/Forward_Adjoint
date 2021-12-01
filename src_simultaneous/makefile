@@ -4,7 +4,7 @@ OPT = #-no-wrap-margin
 
 EXE = adj.xx
 
-SOURCE = bioptimod_memory.o par_module.o getmud.o fm34.o SLAE.o adj_new.o main_adj.o
+SOURCE = bioptimod_memory.o par_module.o getmud.o fm34new.o SLAE.o adj_new.o main_adj.o
 
 all: $(SOURCE)
 	$(FC) $(OPT) $(SOURCE) -o $(EXE)

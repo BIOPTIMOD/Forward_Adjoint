@@ -46,7 +46,7 @@ def create_init_opt_const():
     param_file="init_opt_const.txt"
     fid_p = open(param_file,'w')
     header="W       P1      P2      P3      P4      CDOM    NAP    "
-    data  ="1.00000 0.50000 0.50000 0.50000 0.50000 0.50000 0.05000"
+    data  ="1.00000 0.50000 0.50000 0.50000 0.10000 0.50000 0.05000"
     data  ="{:1.5f}".format(W)    + ' ' + \
            "{:1.5f}".format(P1)   + ' ' + \
            "{:1.5f}".format(P2)   + ' ' + \
@@ -85,8 +85,10 @@ def write_row(fid,input_file):
 
     ## clean existing files
     try:
-        result_file = "coe_" + "{:.2f}".format(float(wl)) + ".txt"
-        subprocess.run(['rm ' + result_file], shell=True)
+        res_bio_file = "res_bio.txt"
+        subprocess.run(['rm ' + res_bio_file], shell=True)
+        res_opt_file = "res_opt*.txt"
+        subprocess.run(['rm ' + res_opt_file], shell=True)
     except:
         print("File already clean!")
 

@@ -25,7 +25,7 @@
 !*** It is possible to use a subroutine for printing: call print_par(a+b)         ***!
 !************************************************************************************!
 
-MODULE Par_mod
+MODULE par_mod
 implicit none
 
 PUBLIC:: par, operator(+),  operator(-), operator(*), operator(/), print_par,calc_total_parameters
