@@ -343,7 +343,7 @@ subroutine get_captial_Psi(n,cPsi,psipm,Psi)
 end subroutine get_captial_Psi
 
 !solve the direct problem
- subroutine solve_direct(m, zz, n, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, EdOASIM, EsOASIM, E)
+ subroutine solve_direct(m, zz, n, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, EdOASIM, EsOASIM, E, E_ave)
  use Tridiagonal, only: SLAE3diag
  implicit none
  integer, intent(in):: n,m                                             !n of layers and size of the vertical grid
@@ -351,9 +351,11 @@ end subroutine get_captial_Psi
  double precision, dimension(m), intent(in):: zz                       !must be some grid from z(1)=0 to z(n+1)=bottom
  double precision, dimension(n+1), intent(in):: z                      !layer boundaries (depth levels); z(1)=0 (must be), z(n+1) = bottom
  double precision, dimension(n,nlt), intent(in):: a, b, bb, vd         !input depth-dependent data
+ double precision, dimension(n,nlt)  :: rvd 
  double precision, intent(in):: rd, rs, ru, vs, vu                     !input parameters
  double precision, dimension(nlt),intent(in) :: EdOASIM, EsOASIM                       !boundary values
  double precision, dimension(3,m,nlt), intent(out):: E                     !the 3-stream solution on the zz grid
+ double precision, dimension(3,n,nlt), intent(out):: E_ave                 !the 3-stream solutionaveraged over the discrete levels
  double precision, dimension(n,nlt):: cd, x, y, kp, km, rkp, rkm, ekp, ekm !stuff used in the formulae, see the Overleaf doc https://www.overleaf.com/project/5cbefd4a70921e1466457de2
  double precision, dimension(n,2,nlt):: kmvec, kpvec                       !eigenvectors
  double precision, dimension(n+1,nlt):: Ed                                 !solution of the first equation (which is independent of the other two) on the z grid
@@ -361,15 +363,19 @@ end subroutine get_captial_Psi
  double precision, dimension(nlt) :: Fd, Bd, Cs, Cu, Bs, Bu, DD                !aux variables
  double precision, dimension(0:2*n-2,nlt):: diag, diagd, diagu, RHS        !the matrix, the right-hand side
  double precision, dimension(0:2*n-1,nlt):: cpm                            !the solution c_+ (0,2,4,...), c_- (1,3,5,...), up to cpm(2n-1)=c^-_n=0
+ double precision  :: aux_ave1, aux_ave2
  integer:: k, item,wl                                                     !counters
  Ed(1,:) = EdOASIM(:)                                                    !boundary value: Ed at the surface is just given
+ rvd=min(1.0D0/vd(:,:),1.5D0)
+ rvd=max(rvd,0.0D0)
+
  do k=1,n                                                             !for each layer
          !matrix
          dz = z(k+1)-z(k)                                             !layer thickness
-         cd(k,:) = (a(k,:)+b(k,:))/vd(k,:)                                    !coefficient of the separate equation
+         cd(k,:) = (a(k,:)+b(k,:))*rvd(k,:)                                    !coefficient of the separate equation
          Ed(k+1,:) = Ed(k,:)*exp(-cd(k,:)*dz)                               !solution of the separate equation
-         Fd(:) = (b(k,:)-rd*bb(k,:))/vd(k,:)                                   !components of the auxiliary matrix for the partial solution
-         Bd(:) = rd*bb(k,:)/vd(k,:)
+         Fd(:) = (b(k,:)-rd*bb(k,:))*rvd(k,:)                                   !components of the auxiliary matrix for the partial solution
+         Bd(:) = rd*bb(k,:)*rvd(k,:)
          Cs(:) = (a(k,:)+rs*bb(k,:))/vs
          Cu(:) = (a(k,:)+ru*bb(k,:))/vu
          Bs(:) = rs*bb(k,:)/vs
@@ -422,7 +428,7 @@ end subroutine get_captial_Psi
                          E(d,item,:) = Ed(k,:)*exp(-cd(k,:)*dz)                        !solution of the independent equation
                                                                                  !two other components: (bug corrected: minus sign in the 2nd exp)
                          do wl=1,nlt                                                         
-                         E(s:u,item,wl) = cpm(2*k-2,wl)*kpvec(k,:,wl)*exp(-kp(k,wl)*dz) + & 
+                             E(s:u,item,wl) = cpm(2*k-2,wl)*kpvec(k,:,wl)*exp(-kp(k,wl)*dz) + & 
                                      & cpm(2*k-1,wl)*kmvec(k,:,wl)*exp(-km(k,wl)*dz1)+ &
                                      & [x(k,wl), y(k,wl)]*E(d,item,wl)
                          enddo
@@ -430,6 +436,19 @@ end subroutine get_captial_Psi
                          exit
                  endif
          enddo
+ enddo
+! Averages over layers
+ do k=1,n                                                                        !loop over the layers
+                         dz = z(k+1) - z(k)                                    !from the depth to the top layer boundary
+                         E_ave(d,k,:) = Ed(k,:)*(1.0-exp(-cd(k,:)*dz))/(cd(k,:)*dz)              !solution of the independent equation
+                                                                                 !two other components: (bug corrected: minus sign in the 2nd exp)
+                         do wl=1,nlt                                                         
+                             aux_ave1 = (1.0-exp(-kp(k,wl)*dz))/(kp(k,wl)*dz)
+                             aux_ave2 = (1.0-exp(-km(k,wl)*dz))/(km(k,wl)*dz)
+                             E_ave(s:u,k,wl) = cpm(2*k-2,wl)*kpvec(k,:,wl)*aux_ave1 + & 
+                                     & cpm(2*k-1,wl)*kmvec(k,:,wl)*aux_ave2 + &
+                                     & [x(k,wl), y(k,wl)]*E(d,k,wl)
+                         enddo
  enddo
  return
  end subroutine solve_direct
@@ -474,8 +493,9 @@ subroutine test_3stream_adjoint
  double precision, dimension(4*n+5,nw):: savepar, pp 
  double precision, dimension(4*n+5,nw):: derivs                   !wrt a(n), b(n), b(n), vd(n), also wrt vs, vu, rd, rs, ru
  double precision, dimension(3,m,nw):: lambda, E                  !solutions to two problems
+ double precision, dimension(3,n,nw):: E_ave                      !
  double precision, dimension(m):: integrand                    !grid function for numerical integration
- double precision, parameter:: fac = 1.e1, step = 1.e-1        !aux default fac = 1.e2, step = 1.e-1
+ double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux
  double precision:: Eu0_given = 0.577999                       !the "observed" value
  integer:: L, iter ,err
  integer, parameter:: niter=7                                 !number of iterations
@@ -491,7 +511,7 @@ subroutine test_3stream_adjoint
  EdOASIM(1) = 2.0
  EsOASIM(1) = 1.5
  !solve the direct problem
- call solve_direct(m, zz, n, z, nw, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+ call solve_direct(m, zz, n, z, nw, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
  if(solution) then
          print*, 'The solution E:'
          print*, E(d,:,1)
@@ -513,7 +533,7 @@ subroutine test_3stream_adjoint
      ru=ru*1.01; 
  endif
  !solve the direct problem for the perturbed parameters
- call solve_direct(m, zz, n, z, nw, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+ call solve_direct(m, zz, n, z, nw, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
  if(solution) then
          print*, 'The perturbed solution E:'
          print*, E(d,:,1)
@@ -554,7 +574,7 @@ subroutine test_3stream_adjoint
              ru=ru-derivs(4*n+5,:)*step
          endif
          !solve the direct problem for the perturbed parameters
-         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
          if(solution) then
                  print*, 'The improved solution E:'
                  print*, E(d,:,1)
@@ -589,7 +609,7 @@ subroutine test_3stream_adjoint
          print*, '    b         ', b/savepar(n+1:2*n,:)
          print*, '    bb        ', bb/savepar(2*n+1:3*n,:)
          print*, '    vd        ', vd/savepar(3*n+1:4*n,:)
-!        print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
+         print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
  enddo
 
  print*, ''
@@ -636,7 +656,7 @@ subroutine test_3stream_adjoint
          rd=par(4*n+3,:)
          rs=par(4*n+4,:)
          ru=par(4*n+5,:)
-         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
          functional =  fac*0.5*(E(u,1,1) - Eu0_given)**2 !the functional value
      end function functional
 
@@ -654,7 +674,7 @@ subroutine test_3stream_adjoint
          rd=par(4*n+3,:)
          rs=par(4*n+4,:)
          ru=par(4*n+5,:)
-         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
          W = fac*(E(u,1,1) - Eu0_given)
          call get_derivs(m, zz, n, z, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), W(1), E, grad, lambda)
          gradient = sqrt(sum(grad*grad))
@@ -663,10 +683,7 @@ subroutine test_3stream_adjoint
 end subroutine test_3stream_adjoint
 
 subroutine compute_3stream_adjoint
- use bioptimod_memory, only: nw, wavelength, Ed0m, Es0m, Eu0m, sunz,&
-                             a_init, b_init, bb_init, &
-                             rd_init, rs_init, ru_init, &
-                             vs_init, vu_init 
+ use bioptimod_memory, only: nw, wavelength, Ed0m, Es0m, Eu0m
  use grad_descent, only: FM34 
  implicit none
  integer, parameter:: n=4, m=5
@@ -676,34 +693,30 @@ subroutine compute_3stream_adjoint
  double precision, dimension(m), parameter:: zz = [((i-1)/dble(m-1)*z(n+1),i=1,m)]    !regular grid from z(1) to z(n+1)
  double precision, dimension(n,nw):: a, b, bb, vd
  double precision, dimension(n,nw):: aa
- double precision                 :: mud
  double precision, dimension(nw) :: rd, rs, ru, vs, vu, W, EdOASIM, EsOASIM
  double precision, dimension(4*n+5,nw):: savepar, pp 
  double precision, dimension(4*n+5,nw):: derivs                   !wrt a(n), b(n), b(n), vd(n), also wrt vs, vu, rd, rs, ru
  double precision, dimension(3,m,nw):: lambda, E                  !solutions to two problems
+ double precision, dimension(3,n,nw):: E_ave                      !
  double precision, dimension(m,nw):: integrand                    !grid function for numerical integration
- !double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux default step = 1.e-1
- double precision, parameter:: fac = 1.e-1, step = 1.e-2        !aux default fac = 1.e2, step = 1.e-1
+ double precision, parameter:: fac = 1.e2, step = 1.e-1        !aux default step = 1.e-1
  double precision:: Eu0_given = 0.577999                       !the "observed" value
  integer:: L, iter, lvl, err
  integer, parameter:: niter=7                                  !number of iterations
  logical, parameter:: solution=.false.                         !print the solution?
  logical, parameter:: perturbe_all=.false.                     !all params or just one or two?
  logical           :: perturb_vector(9)  
- character*14      :: fileout
- character*7       :: w_string
-
- call getmud(sunz,mud)
+ character*12      :: fileout
+ character*4       :: w_string
 
  perturb_vector(:)= .FALSE.
  perturb_vector(1)= .TRUE.
  perturb_vector(2)= .TRUE.
  perturb_vector(3)= .TRUE.
-
  do inw=1,nw
  !some values, just for testing
-     a = a_init; b=b_init; bb=bb_init; vd=mud;
-     rd=rd_init; rs=rs_init; ru=ru_init; vs=vs_init; vu=vu_init; 
+     a = 0.1D0; b=0.1D0; bb=0.05D0; vd=0.42D0;
+     rd=1.0D0; rs=1.5D0; ru=3.0D0; vs=0.83D0; vu=0.4D0; 
  !save the values for future comparing
      savepar(1:n,:) = a; savepar(n+1:2*n,:) = b; savepar(2*n+1:3*n,:) = bb;
      savepar(3*n+1:4*n,:) = vd; 
@@ -711,7 +724,7 @@ subroutine compute_3stream_adjoint
      savepar(4*n+4,:) = rs;  savepar(4*n+5,:) = ru; 
      savepar = savepar/100. !to be in %
 !
-     write (unit=w_string,fmt='(F6.2)') wavelength(inw)
+     write (unit=w_string,fmt='(I0.4)') wavelength(inw)
      fileout   = 'sol_' // TRIM(w_string) // '.txt'
      open (unit=15, file=fileout, status='unknown',    &
            access='sequential', form='formatted', action='readwrite' )
@@ -721,7 +734,7 @@ subroutine compute_3stream_adjoint
      Eu0_given = Eu0m(1)
 !    Eu0_given = E(u,1)
      !solve the direct problem for the perturbed parameters
-     call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+     call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
      if(solution) then
              print*, 'The perturbed solution E:'
              print*, E(d,:,1)
@@ -762,7 +775,7 @@ subroutine compute_3stream_adjoint
              if (perturb_vector(8))  rs=rs-derivs(4*n+4,:)*step
              if (perturb_vector(9))  ru=ru-derivs(4*n+5,:)*step
              !solve the direct problem for the perturbed parameters
-             call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+             call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
              if(solution) then
                      print*, 'The improved solution E:'
                      print*, E(d,:,1)
@@ -798,76 +811,42 @@ subroutine compute_3stream_adjoint
              print*, '    b         ', b/savepar(n+1:2*n,:)
              print*, '    bb        ', bb/savepar(2*n+1:3*n,:)
              print*, '    vd        ', vd/savepar(3*n+1:4*n,:)
-!            print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
-             write(15,*) W
-             write(15,*) a
-             write(15,*) b
-             write(15,*) bb
-             write(15,*) '####'
+             print*, 'vs,vu,rd,rs,ru', [vs,vu,rd,rs,ru]/savepar(4*n+1:4*n+5,1)
              do lvl=1,n ! loop on levels
                  write(15,*) iter, z(lvl), z(lvl+1), a(lvl,1), b(lvl,1), bb(lvl,1), vd(lvl,1), vs, vu, rd, rs, ru
              enddo
              write(15,*) '####'
      enddo
      close(unit=15)
-
-     fileout   = 'coe_' // TRIM(w_string) // '.txt'
-     open (unit=15, file=fileout, status='unknown',    &
-           access='sequential', form='formatted', action='readwrite' )
-
-             write(15,*) W
-
-             do lvl=1,n ! loop on levels
-                 write(15,335,advance='no') z(lvl)
-                 write(15,334,advance='no') ' '
-             enddo
-                 write(15,335) z(n+1)
-
-             do lvl=1,n ! loop on levels
-                 write(15,335,advance='no') a(lvl,1)
-                 write(15,334,advance='no') ' '
-                 write(15,335,advance='no') b(lvl,1)
-                 write(15,334,advance='no') ' '
-                 write(15,335) bb(lvl,1)
-             enddo
-             write(15,*) '####'
-             do lvl=1,n ! loop on levels
-                 write(15,*) iter, z(lvl), z(lvl+1), a(lvl,1), b(lvl,1), bb(lvl,1), vd(lvl,1), vs, vu, rd, rs, ru
-             enddo
-             write(15,*) '####'
-
-     close(unit=15)
-333  FORMAT(E7.2)
-334  FORMAT(A)
-335  FORMAT(F7.4)
-!    print*, ''
-!    print*, '================================================='
-!    print*, '============ DESCENT ============================'
-!    print*, '================================================='
-!    pp = (100.*savepar)*1.10
-!    print*, 'parameters wrt the original values, %:', pp/savepar
-!    print*, 'func(par)=', functional(pp)
-!    print*, '================================================='
+    
+     print*, ''
+     print*, '================================================='
+     print*, '============ DESCENT ============================'
+     print*, '================================================='
+     pp = (100.*savepar)*1.10
+     print*, 'parameters wrt the original values, %:', pp/savepar
+     print*, 'func(par)=', functional(pp)
+     print*, '================================================='
 !    call FM34(functional, Gradient, pp, 1.0d-3, err)
-!    err = 0
-!    select case(err)
-!    case(0)
-!        print*, 'OK!!!'
-!    case(66)
-!        print*, 'Error', err, "'Number of iterations kmax exceeded'"
-!    case(67)
-!        print*, 'Error', err, "'Number of iterations cmax exceeded'"
-!    case(65)
-!        print*, 'Error', err, "'Possible instability'"
-!    case default
-!        print*, 'Unknown error', err
-!    end select
-!    print*, '================================================='
-!    print*, 'parameters wrt the original values, %:', pp/savepar
-!    print*, 'func(par)=', functional(pp)
-!    print*, '|grad(par)|=', gradient(pp,derivs)
-!    print*, 'grad(par)=', derivs
-!    print*, '================================================='
+     err = 0
+     select case(err)
+     case(0)
+         print*, 'OK!!!'
+     case(66)
+         print*, 'Error', err, "'Number of iterations kmax exceeded'"
+     case(67)
+         print*, 'Error', err, "'Number of iterations cmax exceeded'"
+     case(65)
+         print*, 'Error', err, "'Possible instability'"
+     case default
+         print*, 'Unknown error', err
+     end select
+     print*, '================================================='
+     print*, 'parameters wrt the original values, %:', pp/savepar
+     print*, 'func(par)=', functional(pp)
+     print*, '|grad(par)|=', gradient(pp,derivs)
+     print*, 'grad(par)=', derivs
+     print*, '================================================='
 
  enddo
  contains
@@ -885,7 +864,7 @@ subroutine compute_3stream_adjoint
          rd=par(4*n+3,:)
          rs=par(4*n+4,:)
          ru=par(4*n+5,:)
-         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
          functional =  fac*0.5*(E(u,1,1) - Eu0_given)**2 !the functional value
      end function functional
 
@@ -903,7 +882,7 @@ subroutine compute_3stream_adjoint
          rd=par(4*n+3,:)
          rs=par(4*n+4,:)
          ru=par(4*n+5,:)
-         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E)
+         call solve_direct(m, zz, n, z, 1, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), EdOASIM, EsOASIM, E, E_ave)
          W = fac*(E(u,1,1) - Eu0_given)
          call get_derivs(m, zz, n, z, a, b, bb, rd(1), rs(1), ru(1), vd, vs(1), vu(1), W(1), E, grad, lambda)
          gradient = sqrt(sum(grad*grad))
