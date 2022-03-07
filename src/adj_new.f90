@@ -447,7 +447,7 @@ end subroutine get_captial_Psi
                              aux_ave2 = (1.0-exp(-km(k,wl)*dz))/(km(k,wl)*dz)
                              E_ave(s:u,k,wl) = cpm(2*k-2,wl)*kpvec(k,:,wl)*aux_ave1 + & 
                                      & cpm(2*k-1,wl)*kmvec(k,:,wl)*aux_ave2 + &
-                                     & [x(k,wl), y(k,wl)]*E(d,k,wl)
+                                     & [x(k,wl), y(k,wl)]*E_ave(d,k,wl)
                          enddo
  enddo
  return
