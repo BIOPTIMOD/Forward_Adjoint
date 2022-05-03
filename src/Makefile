@@ -1,5 +1,4 @@
-FC = gfortran #ifort
-#FC = ifort
+include compiler.inc
 OPT = #-no-wrap-margin
 
 EXE = adj.xx
@@ -28,7 +27,7 @@ clear:
 
 clean: clear
 
-SAVE = *.f90 *.txt *.nml makefile
+SAVE = *.f90 *.txt *.nml Makefile
 
 tar: 
 	tar -zcf backup_`date +%F`.tar.gz $(SAVE)
