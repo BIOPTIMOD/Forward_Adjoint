@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler_name: [gcc10, gcc13, intel]
+        include:
+          - compiler_name: gcc13
+            compiler: gcc
+            compiler_version: 13
+          - compiler_name: gcc10
+            compiler: gcc
+            compiler_version: 10
+          - compiler_name: intel
+            compiler: intel
+            compiler_version: 2023.2
+        exclude:
+          - os: macos-latest
+            compiler_name: intel
+    steps:
+    - name: Prepare the virtual machine
+      uses: fortran-lang/setup-fortran@v1
+      with:
+        compiler: ${{ matrix.compiler }}
+        version: ${{ matrix.compiler_version }}
+
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    - name: Configure and Build Project
+      uses: threeal/cmake-action@main
+      with:
+        build-dir: build
+
+    - name: Run tests
+      working-directory: build
+      run: ctest
+

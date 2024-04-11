@@ -1,6 +1,6 @@
 
 add_library(adj STATIC
-   bioptimod_memory.f90 fm34.f90 SLAE.f90 adj_new.f90
+   bioptimod_memory.f90 fm34.f90 SLAE.F90 adj_new.f90
 )
 
 add_executable(adj_exe
