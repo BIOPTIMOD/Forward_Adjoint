@@ -6,6 +6,8 @@ git clone git@github.com:BIOPTIMOD/Forward_Adjoint.git
 
 cd Forward_Adjoint/src
 
+git checkout tags/release-1.0
+
 make clean
 
 make lib
