@@ -1,6 +1,6 @@
       subroutine lidata_test(nlt,nchl)
 
-      USE bioptimod_memory, ONLY: lam,lam1,lam2,aw,bw,bbw,ac,ac_ps,bc,bbc,acdom,apoc,bpoc,bbpoc
+      USE bioptimod_memory, ONLY: lam,lam1,lam2,aw,bw,bbw,ac,ac_ps,bc,bbc,acdom,anap,bnap,bbnap
       IMPLICIT NONE 
 !  Reads in radiative transfer data: specifically 
 !  water data (seawater absorption, total and back scattering coefficients,
@@ -69,7 +69,7 @@
       close(4)
 30    format(i4,4f10.4)
 
-!  POC absoprion, scattering and back scattering normalized to mgC/m3
+! NAP absoprion, scattering and back scattering normalized to mgC/m3
       cfle = cdir//cacbpoc
       open(4,file=cfle,status='old',form='formatted')
       do i = 1,6
@@ -78,9 +78,9 @@
       do nl = 1,nlt
        read(4,40)lambda,sapoc,sbpoc,sbbpoc
        write(*,*) lambda,sapoc,sbpoc,sbbpoc
-       apoc(nl) = sapoc
-       bpoc(nl) = sbpoc
-       bbpoc(nl) = sbbpoc
+       anap(nl) = sapoc
+       bnap(nl) = sbpoc
+       bbnap(nl) = sbbpoc
       enddo
       close(4)
 40    format(i5,3f10.2)
