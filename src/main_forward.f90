@@ -2,10 +2,11 @@ program  bio_optical_forward
 use bioptimod_memory,  only: nlt, wavelength, read_command_line, parse_command_line, nlev, nphy, Ed0m, Es0m, Eu0m, &
                              allocate_bio_optical_parameters, read_coefficients, read_1d_ascii, read_2d_ascii, &
                              compute_total_a_b_bb, &
-                             rd, rs, ru, vs, vu
+                             rd, rs, ru, vs, vu, &
+                             write_2d_ascii
 use adj_3stream, only: solve_direct
 !local
-double precision :: Ed_0m(nlt), Es_0m(nlt)
+double precision :: Ed_0m(nlt,2), Es_0m(nlt,2) ! first index wavelenght
 double precision :: Rrs0p_sat(nlt), Eu0m_sat(nlt)
 double precision, allocatable :: z(:) !layer boundaries (depth levels); z(1)=0 (must be), z(n+1) = bottom
 double precision, allocatable :: chl(:,:),C(:,:),nap(:),cdom(:) 
@@ -46,24 +47,23 @@ call read_1d_ascii("cdom.txt", nlev, cdom)
 
 ! Compute total absorption (a), total scattering (b), total back scattering (bb)
 call compute_total_a_b_bb(nlt, nphy, nlev, chl, C, cdom, nap, a, b, bb)
-write(*,*) 'a', a(:,:)
-write(*,*) 'b', b(:,:)
-write(*,*) 'bb',bb(:,:)
 
 ! Retrieve boundary values at the surface
-Ed_0m(:)=1.0
-Es_0m(:)=1.0
+call read_2d_ascii("Ed.txt", nlt, 2, Ed_0m)
+call read_2d_ascii("Es.txt", nlt, 2, Es_0m)
 
 ! compute
-call solve_direct(nlev+1, z, nlev, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, Ed_0m, Es_0m, E, E_ave)
+call solve_direct(nlev+1, z, nlev, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, Ed_0m(:,2), Es_0m(:,2), E, E_ave)
 
 ! print output
-write(*,*) 'Ed', E(1,:,:)
-write(*,*) 'Es', E(2,:,:)
-write(*,*) 'Eu', E(3,:,:)
-write(*,*) 'Ed_ave', E_ave(1,:,:)
-write(*,*) 'Es_ave', E_ave(2,:,:)
-write(*,*) 'Eu_ave', E_ave(3,:,:)
+call write_2d_ascii("Edout.txt", nlev+1, nlt, E(1,:,:))
+call write_2d_ascii("Esout.txt", nlev+1, nlt, E(2,:,:))
+call write_2d_ascii("Euout.txt", nlev+1, nlt, E(3,:,:))
+
+! print output ave
+call write_2d_ascii("Edout_ave.txt", nlev, nlt, E_ave(1,:,:))
+call write_2d_ascii("Esout_ave.txt", nlev, nlt, E_ave(2,:,:))
+call write_2d_ascii("Euout_ave.txt", nlev, nlt, E_ave(3,:,:))
 
 !finalize
 end program bio_optical_forward

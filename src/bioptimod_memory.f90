@@ -157,6 +157,25 @@ end subroutine allocate_bio_optical_parameters
      close(unit=16)
      end subroutine
 
+     subroutine write_2d_ascii(fname, nlev, ncol, var2d)
+     ! eg Read chlorophyll concentration
+     implicit none
+     character(*) :: fname
+     integer, intent(in) ::nlev, ncol
+     double precision, intent(in) :: var2d(nlev,ncol)
+     ! local variable
+     integer :: i,col
+     open (unit=17, file=TRIM(fname), status='new',    &
+      access='sequential', form='formatted', action='write' )
+
+     do i = 1,nlev
+         write(17,"(33F8.2)") (var2d(i,col),col=1,ncol)
+     end do
+
+     close(unit=17)
+     end subroutine
+
+
 
 END MODULE bioptimod_memory
 
