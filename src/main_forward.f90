@@ -5,6 +5,7 @@ use bioptimod_memory,  only: nlt, wavelength, read_command_line, parse_command_l
                              rd, rs, ru, vs, vu, &
                              write_2d_ascii
 use adj_3stream, only: solve_direct
+implicit none
 !local
 double precision :: Ed_0m(nlt,2), Es_0m(nlt,2) ! first index wavelenght
 double precision :: Rrs0p_sat(nlt), Eu0m_sat(nlt)
@@ -30,7 +31,7 @@ call allocate_bio_optical_parameters(nlt, nphy, nlev)
 
 !Init
 call read_coefficients() ! read values for rd, rs, ru, vs, vu
-call lidata_test(nlt,nchl)
+call lidata_test(nlt,nphy)
 
 vd(:,:)=1.0
 
@@ -40,6 +41,8 @@ call read_1d_ascii("z.txt", nlev+1, z)
 ! Read chlorophyll and carbon C concentration
 call read_2d_ascii("chl.txt", nlev, nphy, chl)
 call read_2d_ascii("C.txt", nlev, nphy, C)
+write(*,*) 'chl', chl
+write(*,*) 'C', C
 
 ! Read nap, cdom concentration
 call read_1d_ascii("nap.txt", nlev, nap)

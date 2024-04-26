@@ -46,8 +46,17 @@ subroutine compute_total_a_b_bb(nlt, nphy, nlev, chl, C, cdom, nap, a, b, bb)
         do i=1,nlev
            do wl=1,nlt
               a(i,wl)  = aw(wl)  + DOT_PRODUCT(ac(:,wl),chl(i,:))    +acdom(wl)*cdom(i) +  anap(wl)*nap(i)
+              write(*,*) 'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO'
+              write(*,*) 'phyto-abs', DOT_PRODUCT(ac(:,wl),chl(i,:))
+              write(*,*) 'phyto-ac', ac(i,:)
+              write(*,*) 'phyto-chl', chl(i,:)
+
               b(i,wl)  = bw(wl)  + DOT_PRODUCT(bc(:,wl),  C(i,:))                       +  bnap(wl)*nap(i)
+              write(*,*) 'phyto-scatter', DOT_PRODUCT(bc(:,wl),C(i,:))
+
               bb(i,wl) = bbw(wl) + DOT_PRODUCT(bbc(:,wl)*bc(:,wl), C(i,:))              + bbnap(wl)*nap(i)
+              write(*,*) 'phyto-back-scatter', DOT_PRODUCT(bbc(:,wl)*bc(:,wl),C(i,:))
+              write(*,*) 'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO'
            enddo
         enddo
         
