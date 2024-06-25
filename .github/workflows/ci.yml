@@ -37,6 +37,8 @@ jobs:
             compiler_name: gcc10
           - os: macos-11
             compiler_name: intel
+          - os: macos-11
+            compiler_name: gcc13
     steps:
     - name: Prepare the virtual machine
       uses: fortran-lang/setup-fortran@v1
