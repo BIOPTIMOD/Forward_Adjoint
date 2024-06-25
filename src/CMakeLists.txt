@@ -20,3 +20,4 @@ target_link_libraries(forward_exe PRIVATE adj)
 
 install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
 
+target_include_directories(adj PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
