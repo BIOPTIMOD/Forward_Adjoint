@@ -4,6 +4,8 @@ project(adj VERSION 1.0.0 LANGUAGES Fortran)
 
 add_subdirectory(src)
 
+target_include_directories(adj PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+
 enable_testing()
 
 # define tests
