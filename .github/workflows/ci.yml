@@ -28,6 +28,8 @@ jobs:
             generator: "Unix Makefiles"
           - os: macos-latest
             generator: "Unix Makefiles"
+          - os: macos-11
+            generator: "Unix Makefiles"
           - os: windows-latest
             generator: "MinGW Makefiles"
         exclude:
