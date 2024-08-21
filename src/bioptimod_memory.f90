@@ -99,7 +99,8 @@ end subroutine allocate_bio_optical_parameters
          msg = ''
          read(command_line,nml = cmd,iostat = io,iomsg = msg)
          if (io/=0) then
-           error stop "Error parsing the command line or cmd.conf " // msg
+           write(*,*) "Error parsing the command line or cmd.conf " // msg
+           error stop
          end if
        end if
      end subroutine
