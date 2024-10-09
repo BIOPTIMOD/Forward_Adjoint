@@ -1,6 +1,6 @@
 MODULE adj_3stream
 
-    PUBLIC:: test_3stream_adjoint, compute_3stream_adjoint, get_derivs, solve_direct
+    PUBLIC:: test_3stream_adjoint, compute_3stream_adjoint, get_derivs, solve_direct, solve_direct_br
 
     PRIVATE
 
@@ -452,6 +452,122 @@ end subroutine get_captial_Psi
  enddo
  return
  end subroutine solve_direct
+
+!solve the direct problem with bottom reflection
+ subroutine solve_direct_br(m, zz, n, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, EdOASIM, EsOASIM, br, E, E_ave)
+ use Tridiagonal, only: SLAE3diag
+ implicit none
+ integer, intent(in):: n,m                                             !n of layers and size of the vertical grid
+ integer, intent(in):: nlt                                             !n of wavelenghts to be considered
+ double precision, dimension(m), intent(in):: zz                       !must be some grid from z(1)=0 to z(n+1)=bottom
+ double precision, dimension(n+1), intent(in):: z                      !layer boundaries (depth levels); z(1)=0 (must be), z(n+1) = bottom
+ double precision, dimension(n,nlt), intent(in):: a, b, bb, vd         !input depth-dependent data
+ double precision, dimension(n,nlt)  :: rvd 
+ double precision, intent(in):: rd, rs, ru, vs, vu                     !input parameters
+ double precision, dimension(nlt),intent(in) :: EdOASIM, EsOASIM, br   !boundary values
+ double precision, dimension(3,m,nlt), intent(out):: E                     !the 3-stream solution on the zz grid
+ double precision, dimension(3,n,nlt), intent(out):: E_ave                 !the 3-stream solutionaveraged over the discrete levels
+ double precision, dimension(n,nlt):: cd, x, y, kp, km, rkp, rkm, ekp, ekm !stuff used in the formulae, see the Overleaf doc https://www.overleaf.com/project/5cbefd4a70921e1466457de2
+ double precision, dimension(n,2,nlt):: kmvec, kpvec                       !eigenvectors
+ double precision, dimension(n+1,nlt):: Ed                                 !solution of the first equation (which is independent of the other two) on the z grid
+ double precision :: dz, dz1
+ double precision, dimension(nlt) :: Fd, Bd, Cs, Cu, Bs, Bu, DD                !aux variables
+ double precision, dimension(0:2*n-1,nlt):: diag, diagd, diagu, RHS        !the matrix, the right-hand side
+ double precision, dimension(0:2*n-1,nlt):: cpm                            !the solution c_+ (0,2,4,...), c_- (1,3,5,...), up to cpm(2n-1)=c^-_n=0
+ double precision  :: aux_ave1, aux_ave2
+ integer:: k, item,wl                                                     !counters
+ Ed(1,:) = EdOASIM(:)                                                    !boundary value: Ed at the surface is just given
+ rvd=min(1.0D0/vd(:,:),1.5D0)
+ rvd=max(rvd,0.0D0)
+
+ do k=1,n                                                             !for each layer
+         !matrix
+         dz = z(k+1)-z(k)                                             !layer thickness
+         cd(k,:) = (a(k,:)+b(k,:))*rvd(k,:)                                    !coefficient of the separate equation
+         Ed(k+1,:) = Ed(k,:)*exp(-cd(k,:)*dz)                               !solution of the separate equation
+         Fd(:) = (b(k,:)-rd*bb(k,:))*rvd(k,:)                                   !components of the auxiliary matrix for the partial solution
+         Bd(:) = rd*bb(k,:)*rvd(k,:)
+         Cs(:) = (a(k,:)+rs*bb(k,:))/vs
+         Cu(:) = (a(k,:)+ru*bb(k,:))/vu
+         Bs(:) = rs*bb(k,:)/vs
+         Bu(:) = ru*bb(k,:)/vu
+         !aux variables x,y
+         x(k,:) = (-Fd(:)*(Cu(:)+cd(k,:)) -Bd(:)*Bu(:))  / ((cd(k,:)-Cs(:))*(cd(k,:)+Cu(:))+Bs(:)*Bu(:))       !explicit solution of the aux SLAE
+         y(k,:) = (-Fd(:)*Bs(:) +Bd(:)*(-Cs(:)+cd(k,:))) / ((cd(k,:)-Cs(:))*(cd(k,:)+Cu(:))+Bs(:)*Bu(:))
+         !eigenvalues
+         DD(:) = 0.5*(Cs(:)+Cu(:)+sqrt((Cs(:)+Cu(:))*(Cs(:)+Cu(:))-4*Bs(:)*Bu(:)))
+         kp(k,:) = DD(:)-Cu(:)                                                !k^+
+         km(k,:) = DD(:)-Cs(:)                                                !k^-
+         !eigenvectors
+         rkp(k,:) = Bs(:)/DD(:)                                               !r_k^+
+         rkm(k,:) = Bu(:)/DD(:)                                               !r_k^-
+         do wl = 1,nlt ! loop on wavelenghts
+             kmvec(k,:,wl) = [ rkm(k,wl), one]
+             kpvec(k,:,wl) = [ one, rkp(k,wl)]
+         enddo
+         !exponents
+         ekp(k,:) = exp(-kp(k,:)*dz)                                      !e_k^+
+         ekm(k,:) = exp(-km(k,:)*dz)                                      !e_k^-
+ enddo
+ !the matrix, 3 diagonals. The matrix is (2n-1)x(2n-1), so are the diagonals: from 0 to 2n-2
+ diagd(0,:) = zero                           !not used
+ diag(0,:) = one                             !zeta0
+ diagu(0,:) = rkm(1,:)*exp(-km(1,:)*(z(2)-z(1))) !eta0
+ RHS(0,:) = EsOASIM(:) - x(1,:)*EdOASIM(:)           !theta0
+ do k=1,n-1
+         diag (2*k-1,:) =  rkm(k,:)-rkm(k+1,:)             !beta_k 
+         diagu(2*k-1,:) = -(1.-rkp(k+1,:)*rkm(k+1,:))       !gamma_k
+         diagd(2*k-1,:) =  (1.-rkp(k,:)*rkm(k+1,:))*ekp(k,:) !alpha_k
+         RHS(2*k-1,:) = (x(k+1,:)-x(k,:) - (y(k+1,:)-y(k,:))*rkm(k+1,:))*Ed(k+1,:) !delta_k
+         diag (2*k,:) = -(rkp(k+1,:)-rkp(k,:))             !zeta_k 
+         diagu(2*k,:) = -(1.-rkm(k+1,:)*rkp(k,:))*ekm(k+1,:) !nu_k
+         diagd(2*k,:) = 1-rkp(k,:)*rkm(k,:)                !eps_k
+         RHS(2*k,:) = (y(k+1,:)-y(k,:) - (x(k+1,:)-x(k,:))*rkp(k,:))*Ed(k+1,:) !theta_k
+ enddo
+
+ k=n ! last layer on the seafloor
+ diagd(2*k-1,:) = (rkp(k,:)-br(:))*ekp(k,:)         !alpha_k bottom 
+ diag (2*k-1,:) = one-rkm(k,:)*br(:)                !beta_k bottom
+ RHS(2*k-1,:)   = (br(:)*(x(k,:)+1)-y(k,:))*Ed(k+1,:) !delta_k
+
+!cpm(2*n-1,:)=0.                             !c^-_n=0 is just known, not a part of the solution
+ if(n>1) then
+        call SLAE3diag(2*n,nlt,diagd, diag, diagu, RHS, cpm(0:2*n-1,:)) !solve the SLAE     
+ else
+        cpm(0,:)=RHS(0,:)
+ endif
+ do k=1,n                                                                        !loop over the layers
+         do item=1,m                                                             !loop over the zz grid
+                 if(zz(item)>=z(k) .and. zz(item)<=z(k+1)) then                  !find the horizons within the current layer
+                         dz = zz(item) - z(k)                                    !from the depth to the top layer boundary
+                         dz1= z(k+1) - zz(item)                                  !from the depth to the bottom layer boundary
+                         E(d,item,:) = Ed(k,:)*exp(-cd(k,:)*dz)                        !solution of the independent equation
+                                                                                 !two other components: (bug corrected: minus sign in the 2nd exp)
+                         do wl=1,nlt                                                         
+                             E(s:u,item,wl) = cpm(2*k-2,wl)*kpvec(k,:,wl)*exp(-kp(k,wl)*dz) + & 
+                                     & cpm(2*k-1,wl)*kmvec(k,:,wl)*exp(-km(k,wl)*dz1)+ &
+                                     & [x(k,wl), y(k,wl)]*E(d,item,wl)
+                         enddo
+                 else if(zz(item).ge.z(k+1)) then                                !skip the rest if deeper than the current layer
+                         exit
+                 endif
+         enddo
+ enddo
+! Averages over layers
+ do k=1,n                                                                        !loop over the layers
+                         dz = z(k+1) - z(k)                                    !from the depth to the top layer boundary
+                         E_ave(d,k,:) = Ed(k,:)*(1.0-exp(-cd(k,:)*dz))/(cd(k,:)*dz)              !solution of the independent equation
+                                                                                 !two other components: (bug corrected: minus sign in the 2nd exp)
+                         do wl=1,nlt                                                         
+                             aux_ave1 = (1.0-exp(-kp(k,wl)*dz))/(kp(k,wl)*dz)
+                             aux_ave2 = (1.0-exp(-km(k,wl)*dz))/(km(k,wl)*dz)
+                             E_ave(s:u,k,wl) = cpm(2*k-2,wl)*kpvec(k,:,wl)*aux_ave1 + & 
+                                     & cpm(2*k-1,wl)*kmvec(k,:,wl)*aux_ave2 + &
+                                     & [x(k,wl), y(k,wl)]*E_ave(d,k,wl)
+                         enddo
+ enddo
+ return
+ end subroutine solve_direct_br
 
 !the trapezoid numerical integration
       PURE FUNCTION trapz(x,y) ! trapz integration: int{ydx}

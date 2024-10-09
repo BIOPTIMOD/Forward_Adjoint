@@ -4,10 +4,10 @@ use bioptimod_memory,  only: nlt, wavelength, read_command_line, parse_command_l
                              compute_total_a_b_bb, &
                              rd, rs, ru, vs, vu, &
                              write_2d_ascii
-use adj_3stream, only: solve_direct
+use adj_3stream, only: solve_direct_br
 implicit none
 !local
-double precision :: Ed_0m(nlt,2), Es_0m(nlt,2) ! first index wavelenght
+double precision :: Ed_0m(nlt,2), Es_0m(nlt,2), br(nlt) ! first index wavelenght
 double precision :: Rrs0p_sat(nlt), Eu0m_sat(nlt)
 double precision, allocatable :: z(:) !layer boundaries (depth levels); z(1)=0 (must be), z(n+1) = bottom
 double precision, allocatable :: chl(:,:),C(:,:),nap(:),cdom(:) 
@@ -56,7 +56,8 @@ call read_2d_ascii("Ed.txt", nlt, 2, Ed_0m)
 call read_2d_ascii("Es.txt", nlt, 2, Es_0m)
 
 ! compute
-call solve_direct(nlev+1, z, nlev, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, Ed_0m(:,2), Es_0m(:,2), E, E_ave)
+br(:)=0.5
+call solve_direct_br(nlev+1, z, nlev, z, nlt, a, b, bb, rd, rs, ru, vd, vs, vu, Ed_0m(:,2), Es_0m(:,2),br, E, E_ave)
 
 ! print output
 call write_2d_ascii("Edout.txt", nlev+1, nlt, E(1,:,:))
