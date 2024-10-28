@@ -16,7 +16,10 @@ git clone git@github.com:BIOPTIMOD/Forward_Adjoint.git
 
 git checkout BR
 
-# How to compile the fortran code (required tools cmake and a fortran compiler e.g. gfortran)
+# How to compile the fortran code 
+
+
+To compile the code use cmake and a fortran compiler e.g. gfortran
 
 mkdir BUILD
 
