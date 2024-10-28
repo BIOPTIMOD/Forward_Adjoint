@@ -14,15 +14,15 @@ To download the code cloning the repository and compile the library do the follo
 
 git clone git@github.com:BIOPTIMOD/Forward_Adjoint.git
 
-cd Forward_Adjoint/src
+git checkout BR
 
-git checkout tags/release-1.0
+# How to compile the fortran code (required tools cmake and a fortran compiler e.g. gfortran)
 
-make clean
+mkdir BUILD
 
-make lib
+cd BUILD
 
-The default compiler is gfortran, but editing the FC variable in the makefile you can select ifort.
+cmake ../
 
-
+make
 
