@@ -44,8 +44,8 @@ contains
                       else
                          den_r = 1.0d0/(den - 0.000001D0)
                       endif
-                      a(i,:) = -Udiag(i,:)*den_r
-                      b(i,:) = ( rhs(i,j) - b(i-1,j)*Ldiag(i,j) ) * den_r
+                      a(i,j) = -Udiag(i,j)*den_r
+                      b(i,j) = ( rhs(i,j) - b(i-1,j)*Ldiag(i,j) ) * den_r
                    enddo
                    den =  Ldiag(n,j)*a(n-1,j) + diag(n,j) 
                    if (den .GE. 0.0d0) then 
